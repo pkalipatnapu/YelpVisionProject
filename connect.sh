@@ -5,10 +5,10 @@
 # make a copy of this script and change the "NAME" field to your own account name.
 # Keep the original of this script, since "ec2-user" will still be your group's master account, and has sudo access. 
 
-ADDR=             # change each time you start your machine to its current dns name or ip address
+ADDR=52.38.79.143             # change each time you start your machine to its current dns name or ip address
 NAME=ubuntu
 LHOST=localhost
-SSHKEY=          # change to the name of your private key file
+SSHKEY=CS280.pem          # change to the name of your private key file
 
 for i in `seq 8888 8900`; do
     FORWARDS[$((2*i))]="-L"
