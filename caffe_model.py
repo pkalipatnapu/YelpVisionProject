@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+# This was taken from the miniplaces challenge assignment. It has been modified for the yelp images dataset:
+# The crop size is increased to 300x300.
+# The output is the values for the 9 (binary) attributes in the yelp challenge.
+# The evaluation is based on the mean F1 score instead.
+
 from __future__ import division
 
 import argparse
@@ -14,9 +19,9 @@ parser = argparse.ArgumentParser(
                                  description='Train and evaluate a net on the MIT mini-places dataset.')
 parser.add_argument('--image_root', default='./images/',
                     help='Directory where images are stored')
-parser.add_argument('--crop', type=int, default=96,
+parser.add_argument('--crop', type=int, default=300,
                     help=('The edge length of the random image crops'
-                          '(defaults to 96 for 96x96 crops)'))
+                          '(defaults to 300 for 300 crops)'))
 parser.add_argument('--disp', type=int, default=10,
                     help='Print loss/accuracy every --disp training iterations')
 parser.add_argument('--snapshot_dir', default='./snapshot',
@@ -121,7 +126,7 @@ def max_pool(bottom, ks, stride=1, train=False):
                      **engine)
 
 def minialexnet(data, labels=None, train=False, param=learned_param,
-                num_classes=100, with_labels=True):
+                num_classes=9, with_labels=True):
     """
         Returns a protobuf text file specifying a variant of AlexNet, following the
         original specification (<caffe>/models/bvlc_alexnet/train_val.prototxt).
@@ -149,10 +154,10 @@ def minialexnet(data, labels=None, train=False, param=learned_param,
     preds = n.fc8 = L.InnerProduct(n.drop7, num_output=num_classes, param=param)
     if not train:
         # Compute the per-label probabilities at test/inference time.
-        preds = n.probs = L.Softmax(n.fc8)
+        preds = n.probs = L.Sigmoid(n.fc8)
     if with_labels:
         n.label = labels
-        n.loss = L.SoftmaxWithLoss(n.fc8, n.label)
+        n.loss = L.SigmoidCrossEntropyLoss(n.fc8, n.label)
         n.accuracy_at_1 = L.Accuracy(preds, n.label)
         n.accuracy_at_5 = L.Accuracy(preds, n.label,
                                      accuracy_param=dict(top_k=5))
