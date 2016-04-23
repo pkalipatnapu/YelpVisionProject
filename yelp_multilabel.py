@@ -101,7 +101,7 @@ class BatchLoader(object):
             for row in reader:
                 image_key.append(row)
 		
-		self._cur = 0  # current image
+        self._cur = 0  # current image
         # this class does some simple data-manipulations
         self.transformer = SimpleTransformer()
 
@@ -133,10 +133,9 @@ class BatchLoader(object):
 
         # Load an image
         photo_id = self.image_key[self._cur]["photo_id"]  # Get the image index
-		business_id = self.image_key[self._cur]["business_id"]
+        business_id = self.image_key[self._cur]["business_id"]
         image_file_name = photo_id + '.jpg'
-        im = np.asarray(Image.open(
-            osp.join(self.pascal_root, 'JPEGImages', image_file_name)))
+        im = np.asarray(Image.open(osp.join(self.pascal_root, 'JPEGImages', image_file_name)))
         im = scipy.misc.imresize(im, self.im_shape)  # resize
 
         # do a simple horizontal flip as data augmentation
@@ -155,7 +154,7 @@ class BatchLoader(object):
         return self.transformer.preprocess(im), multilabel
 
 
-	def load_yelp_attributes(business_id):
+    def load_yelp_attributes(business_id):
         return self.attributes_dict[business_id]
 
 
