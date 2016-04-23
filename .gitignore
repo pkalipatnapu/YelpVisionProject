@@ -1,3 +1,4 @@
 connect.sh
 *.pem
 *.swp
+*.csv
