@@ -93,6 +93,7 @@ class BatchLoader(object):
         self.batch_size = params['batch_size']
         self.yelp_root = params['yelp_root']
         self.im_shape = params['im_shape']
+	self.split=params['split']
         # get list of image indexes.
         list_csv = self.yelp_root + params['split'] + '_photo_to_biz_ids.csv'
         self.image_key = []
@@ -112,14 +113,14 @@ class BatchLoader(object):
 				   'restaurant_is_expensive', 'has_alcohol', 'has_table_service',
 				   'ambience_is_classy', 'good_for_kids')"""
 
-        attributes_csv = osp.join(yelp_root, 'train.csv')
+        attributes_csv = osp.join(self.yelp_root, 'train.csv')
         self.attributes_dict = {}
 
         with open(attributes_csv) as csv_file:
             reader = csv.DictReader(csv_file)
             for row in reader:
                 attr_string = row["labels"]
-                self.attributes_dict[row[business_id]] = [int(label) for label in row[labels].split()]
+                self.attributes_dict[row["business_id"]] = [int(label) for label in row["labels"].split()]
 		
 
     def load_next_image(self):
@@ -135,7 +136,7 @@ class BatchLoader(object):
         photo_id = self.image_key[self._cur]["photo_id"]  # Get the image index
         business_id = self.image_key[self._cur]["business_id"]
         image_file_name = photo_id + '.jpg'
-        im = np.asarray(Image.open(osp.join(self.pascal_root, 'JPEGImages', image_file_name)))
+        im = np.asarray(Image.open(osp.join(self.yelp_root, self.split+'_photos', image_file_name)))
         im = scipy.misc.imresize(im, self.im_shape)  # resize
 
         # do a simple horizontal flip as data augmentation
@@ -144,8 +145,8 @@ class BatchLoader(object):
 
         # Load and prepare ground truth
         multilabel = np.zeros(9).astype(np.float32)
-        if split in ["train", "val"]:
-            anns = load_yelp_attributes(business_id)
+        if self.split in ["train", "val"]:
+            anns = self.load_yelp_attributes(business_id)
             for label in anns:
                 # convert label information to a 1/0 array.
                 multilabel[label] = 1
@@ -154,7 +155,7 @@ class BatchLoader(object):
         return self.transformer.preprocess(im), multilabel
 
 
-    def load_yelp_attributes(business_id):
+    def load_yelp_attributes(self, business_id):
         return self.attributes_dict[business_id]
 
 

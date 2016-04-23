@@ -1,4 +1,6 @@
 connect.sh
 *.pem
 *.swp
-*.csv
+yelp_multilabel_dir/*
+.ipynb_checkpoints/*
+*.pyc
