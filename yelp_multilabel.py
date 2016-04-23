@@ -95,11 +95,11 @@ class BatchLoader(object):
         self.im_shape = params['im_shape']
         # get list of image indexes.
         list_csv = self.yelp_root + params['split'] + '_photo_to_biz_ids.csv'
-		image_key = []
-		with open(list_csv) as csv_file:
-			reader = csv.DictReader(csv_file)
-			for row in reader:
-				image_key.append(row)
+        image_key = []
+        with open(list_csv) as csv_file:
+            reader = csv.DictReader(csv_file)
+            for row in reader:
+                image_key.append(row)
 		
 		self._cur = 0  # current image
         # this class does some simple data-manipulations
@@ -112,14 +112,14 @@ class BatchLoader(object):
 				   'restaurant_is_expensive', 'has_alcohol', 'has_table_service',
 				   'ambience_is_classy', 'good_for_kids')"""
 
-    	attributes_csv = osp.join(yelp_root, 'train.csv')
-		self.attributes_dict = {}
+        attributes_csv = osp.join(yelp_root, 'train.csv')
+        self.attributes_dict = {}
 
-		with open(attributes_csv) as csv_file:
-			reader = csv.DictReader(csv_file)
-			for row in reader:
-				attr_string = row["labels"]
-				self.attributes_dict[row[business_id]] = [int(label) for label in row[labels].split()]
+        with open(attributes_csv) as csv_file:
+            reader = csv.DictReader(csv_file)
+            for row in reader:
+                attr_string = row["labels"]
+                self.attributes_dict[row[business_id]] = [int(label) for label in row[labels].split()]
 		
 
     def load_next_image(self):
@@ -145,18 +145,18 @@ class BatchLoader(object):
 
         # Load and prepare ground truth
         multilabel = np.zeros(9).astype(np.float32)
-		if split in ["train", "val"]:
-        	anns = load_yelp_attributes(business_id)
-        	for label in anns:
-            	# convert label information to a 1/0 array.
-            	multilabel[label] = 1
+        if split in ["train", "val"]:
+            anns = load_yelp_attributes(business_id)
+            for label in anns:
+                # convert label information to a 1/0 array.
+                multilabel[label] = 1
 
         self._cur += 1
         return self.transformer.preprocess(im), multilabel
 
 
 	def load_yelp_attributes(business_id):
-		return self.attributes_dict[business_id]
+        return self.attributes_dict[business_id]
 
 
 def check_params(params):

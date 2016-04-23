@@ -5,7 +5,7 @@
 # make a copy of this script and change the "NAME" field to your own account name.
 # Keep the original of this script, since "ec2-user" will still be your group's master account, and has sudo access. 
 
-ADDR=52.38.79.143             # change each time you start your machine to its current dns name or ip address
+ADDR=52.37.235.53             # change each time you start your machine to its current dns name or ip address
 NAME=ubuntu
 LHOST=localhost
 SSHKEY=CS280.pem          # change to the name of your private key file
