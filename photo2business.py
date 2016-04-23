@@ -12,20 +12,22 @@
 
 import numpy as np
 
-testInput = np.array([np.array([0, 1]),np.array([5]),np.array([4,5]),np.array([7,8]),np.array([1,2,3])]);
-threshold = [0.3, 0.3, 0.3, -1, 0.5, 0.1, 0.3, 0.4, -1];
-count = testInput.size;
-predict = np.zeros(9);
+def convert (image_values):
+    threshold = [0.3, 0.3, 0.3, -1, 0.5, 0.1, 0.3, 0.4, -1]
+    mean_value = np.mean(image_values, axis=0)
 
-for i in range(0, count):
-	for j in range(0, testInput[i].size):
-		predict[testInput[i][j]] += 1;
+    business_labels = np.zeros(9);
 
-testOutput = np.array([]);
+    for i in range(9):
+	if mean_value[i] > threshold[i]:
+	    business_labels[i] = 1
 
-for i in range(0,9):
-	if predict[i]/count > threshold[i]:
-		testOutput = np.insert(testOutput,testOutput.size, i);
+    return business_labels
 
-print testOutput
-
+if __name__ == '__main__':
+    img_labels = [
+              	  [1, 1, 1, 0, 1, 0, 0, 0, 1],
+                  [0 ,0, 1, 1, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 1, 0, 1, 0, 0, 0]
+    ]
+    print convert(img_labels)

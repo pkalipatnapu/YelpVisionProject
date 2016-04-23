@@ -33,7 +33,7 @@ class YelpMultilabelSync(caffe.Layer):
 
     def setup(self, bottom, top):
 
-        self.top_names = ['data', 'label']
+        self.top_names = ['data', 'label', 'business_id', 'image_id']
 
         # === Read input parameters ===
 
@@ -54,7 +54,7 @@ class YelpMultilabelSync(caffe.Layer):
         # once. Else, we'd have to do it in the reshape call.
         top[0].reshape(
             self.batch_size, 3, params['im_shape'][0], params['im_shape'][1])
-        # Note the 20 channels (because Yelp has 20 classes.)
+        # Note the 9 channels (because Yelp has 9 classes.)
         top[1].reshape(self.batch_size, 9)
 
         print_info("YelpMultilabelSync", params)
@@ -96,7 +96,10 @@ class BatchLoader(object):
         self.im_shape = params['im_shape']
 	self.split=params['split']
         # get list of image indexes.
-        list_csv = self.yelp_csv_root + self.split + '_photo_to_biz_ids2.csv'
+        if self.split in ["train", "validation"]:
+       	    list_csv = self.yelp_csv_root + self.split + '_photo_to_biz_ids2.csv'
+	else:
+       	    list_csv = self.yelp_csv_root + self.split + '_photo_to_biz.csv'
         self.image_key = []
         with open(list_csv) as csv_file:
             reader = csv.DictReader(csv_file)
@@ -114,14 +117,15 @@ class BatchLoader(object):
 				   'restaurant_is_expensive', 'has_alcohol', 'has_table_service',
 				   'ambience_is_classy', 'good_for_kids')"""
 
-        attributes_csv = osp.join(self.yelp_csv_root, self.split + '2.csv')
-        self.attributes_dict = {}
+	if self.split in ["train", "validation"]:
+	    attributes_csv = osp.join(self.yelp_csv_root, self.split + '2.csv')
+            self.attributes_dict = {}
 
-        with open(attributes_csv) as csv_file:
-            reader = csv.DictReader(csv_file)
-            for row in reader:
-                attr_string = row["labels"]
-                self.attributes_dict[row["business_id"]] = [int(label) for label in row["labels"].split()]
+            with open(attributes_csv) as csv_file:
+                reader = csv.DictReader(csv_file)
+                for row in reader:
+                    attr_string = row["labels"]
+                    self.attributes_dict[row["business_id"]] = [int(label) for label in row["labels"].split()]
 		
 
     def load_next_image(self):
@@ -129,19 +133,21 @@ class BatchLoader(object):
         Load the next image in a batch.
         """
         # Did we finish an epoch?
-	# shuffle for training.
-	if self.split == "train":
-            if self._cur == len(self.image_key):
-           	self._cur = 0
+        if self._cur == len(self.image_key):
+            self._cur = 0
+	    # Shuffle if we are training.
+	    if self.split == "train":
                 shuffle(self.image_key)
 
         # Load an image
         photo_id = self.image_key[self._cur]["photo_id"]  # Get the image index
         business_id = self.image_key[self._cur]["business_id"]
         image_file_name = photo_id + '.jpg'
-	# TODO(prad): Update this path for test.
-        im = np.asarray(Image.open(osp.join(self.yelp_picture_root, 'train_photos', image_file_name)))
-        im = scipy.misc.imresize(im, self.im_shape)  # resize
+        if self.split in ["train", "validation"]:
+	    im = np.asarray(Image.open(osp.join(self.yelp_picture_root, 'train_photos', image_file_name)))
+        else:
+	    im = np.asarray(Image.open(osp.join(self.yelp_picture_root, 'test_photos', image_file_name)))
+	im = scipy.misc.imresize(im, self.im_shape)  # resize
 
         # do a simple horizontal flip as data augmentation
         flip = np.random.choice(2)*2-1
