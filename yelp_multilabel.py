@@ -95,11 +95,11 @@ class BatchLoader(object):
         self.im_shape = params['im_shape']
         # get list of image indexes.
         list_csv = self.yelp_root + params['split'] + '_photo_to_biz_ids.csv'
-        image_key = []
+        self.image_key = []
         with open(list_csv) as csv_file:
             reader = csv.DictReader(csv_file)
             for row in reader:
-                image_key.append(row)
+                self.image_key.append(row)
 		
         self._cur = 0  # current image
         # this class does some simple data-manipulations
