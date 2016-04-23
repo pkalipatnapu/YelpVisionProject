@@ -91,11 +91,12 @@ class BatchLoader(object):
     def __init__(self, params, result):
         self.result = result
         self.batch_size = params['batch_size']
-        self.yelp_root = params['yelp_root']
+        self.yelp_picture_root = params['yelp_picture_root']
+        self.yelp_csv_root = params['yelp_csv_root']
         self.im_shape = params['im_shape']
 	self.split=params['split']
         # get list of image indexes.
-        list_csv = self.yelp_root + params['split'] + '_photo_to_biz_ids.csv'
+        list_csv = self.yelp_csv_root + self.split + '_photo_to_biz_ids2.csv'
         self.image_key = []
         with open(list_csv) as csv_file:
             reader = csv.DictReader(csv_file)
@@ -113,7 +114,7 @@ class BatchLoader(object):
 				   'restaurant_is_expensive', 'has_alcohol', 'has_table_service',
 				   'ambience_is_classy', 'good_for_kids')"""
 
-        attributes_csv = osp.join(self.yelp_root, 'train.csv')
+        attributes_csv = osp.join(self.yelp_csv_root, self.split + '2.csv')
         self.attributes_dict = {}
 
         with open(attributes_csv) as csv_file:
@@ -128,15 +129,18 @@ class BatchLoader(object):
         Load the next image in a batch.
         """
         # Did we finish an epoch?
-        if self._cur == len(self.image_key):
-            self._cur = 0
-            shuffle(self.image_key)
+	# shuffle for training.
+	if self.split == "train":
+            if self._cur == len(self.image_key):
+           	self._cur = 0
+                shuffle(self.image_key)
 
         # Load an image
         photo_id = self.image_key[self._cur]["photo_id"]  # Get the image index
         business_id = self.image_key[self._cur]["business_id"]
         image_file_name = photo_id + '.jpg'
-        im = np.asarray(Image.open(osp.join(self.yelp_root, self.split+'_photos', image_file_name)))
+	# TODO(prad): Update this path for test.
+        im = np.asarray(Image.open(osp.join(self.yelp_picture_root, 'train_photos', image_file_name)))
         im = scipy.misc.imresize(im, self.im_shape)  # resize
 
         # do a simple horizontal flip as data augmentation
@@ -145,7 +149,7 @@ class BatchLoader(object):
 
         # Load and prepare ground truth
         multilabel = np.zeros(9).astype(np.float32)
-        if self.split in ["train", "val"]:
+        if self.split in ["train", "validation"]:
             anns = self.load_yelp_attributes(business_id)
             for label in anns:
                 # convert label information to a 1/0 array.
@@ -164,9 +168,9 @@ def check_params(params):
     A utility function to check the parameters for the data layers.
     """
     assert 'split' in params.keys(
-    ), 'Params must include split (train, val, or test).'
+    ), 'Params must include split (train, validation, or test).'
 
-    required = ['batch_size', 'yelp_root', 'im_shape']
+    required = ['batch_size', 'yelp_picture_root', 'yelp_csv_root', 'im_shape']
     for r in required:
         assert r in params.keys(), 'Params must include {}'.format(r)
 
