@@ -33,7 +33,7 @@ class YelpMultilabelSync(caffe.Layer):
 
     def setup(self, bottom, top):
 
-        self.top_names = ['data', 'label', 'business_id', 'image_id']
+        self.top_names = ['photo_id', 'label']
 
         # === Read input parameters ===
 
@@ -50,10 +50,7 @@ class YelpMultilabelSync(caffe.Layer):
         self.batch_loader = BatchLoader(params, None)
 
         # === reshape tops ===
-        # since we use a fixed input image size, we can shape the data layer
-        # once. Else, we'd have to do it in the reshape call.
-        top[0].reshape(
-            self.batch_size, 3, params['im_shape'][0], params['im_shape'][1])
+        top[0].reshape(self.batch_size, 1)
         # Note the 9 channels (because Yelp has 9 classes.)
         top[1].reshape(self.batch_size, 9)
 
@@ -65,10 +62,10 @@ class YelpMultilabelSync(caffe.Layer):
         """
         for itt in range(self.batch_size):
             # Use the batch loader to load the next image.
-            im, multilabel = self.batch_loader.load_next_image()
+            photo_id, multilabel = self.batch_loader.load_next_image()
 
             # Add directly to the caffe data layer
-            top[0].data[itt, ...] = im
+            top[0].data[itt, ...] = photo_id
             top[1].data[itt, ...] = multilabel
 
     def reshape(self, bottom, top):
@@ -113,10 +110,6 @@ class BatchLoader(object):
         print "BatchLoader initialized with {} images".format(
             len(self.image_key))
 
-    	"""classes = ('good_for_lunch', 'good_for_dinner', 'takes_reservations', 'outdoor_seating',
-				   'restaurant_is_expensive', 'has_alcohol', 'has_table_service',
-				   'ambience_is_classy', 'good_for_kids')"""
-
 	if self.split in ["train", "validation"]:
 	    attributes_csv = osp.join(self.yelp_csv_root, self.split + '2.csv')
             self.attributes_dict = {}
@@ -131,27 +124,12 @@ class BatchLoader(object):
     def load_next_image(self):
         """
         Load the next image in a batch.
-        """
+	"""
         # Did we finish an epoch?
         if self._cur == len(self.image_key):
             self._cur = 0
-	    # Shuffle if we are training.
-	    if self.split == "train":
-                shuffle(self.image_key)
 
-        # Load an image
         photo_id = self.image_key[self._cur]["photo_id"]  # Get the image index
-        business_id = self.image_key[self._cur]["business_id"]
-        image_file_name = photo_id + '.jpg'
-        if self.split in ["train", "validation"]:
-	    im = np.asarray(Image.open(osp.join(self.yelp_picture_root, 'train_photos', image_file_name)))
-        else:
-	    im = np.asarray(Image.open(osp.join(self.yelp_picture_root, 'test_photos', image_file_name)))
-	im = scipy.misc.imresize(im, self.im_shape)  # resize
-
-        # do a simple horizontal flip as data augmentation
-        flip = np.random.choice(2)*2-1
-        im = im[:, ::flip, :]
 
         # Load and prepare ground truth
         multilabel = np.zeros(9).astype(np.float32)
@@ -162,7 +140,7 @@ class BatchLoader(object):
                 multilabel[label] = 1
 
         self._cur += 1
-        return self.transformer.preprocess(im), multilabel
+        return photo_id, multilabel
 
 
     def load_yelp_attributes(self, business_id):
