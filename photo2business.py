@@ -12,18 +12,24 @@
 
 import numpy as np
 
-def convert (image_values):
-    threshold = [0.3, 0.3, 0.3, 0.1, 0.5, 0.1, 0.3, 0.4, 0.1]
-    mean_value = np.mean(image_values, axis=0)
-    max_value = np.max(image_values, axis=0)
+class p2b:
+    def __init__(self, thresholds = [0.3, 0.3, 0.3, 0.1, 0.5, 0.1, 0.3, 0.4, 0.1]):
+        self.thresholds = thresholds
 
-    business_labels = np.zeros(9);
+    def convert_mean(self, business_mean):
+        business_labels = np.zeros(9);
 
-    for i in range(9):
-	if mean_value[i] > threshold[i]:
-	    business_labels[i] = 1
+        for i in range(9):
+    	    if business_mean[i] > self.thresholds[i]:
+	            business_labels[i] = 1
 
-    return business_labels
+        return business_labels
+
+
+    def convert(self, image_values):
+        mean_value = np.mean(image_values, axis=0)
+        return self.convert_mean(mean_value)
+
 
 if __name__ == '__main__':
     img_labels = [
@@ -31,4 +37,5 @@ if __name__ == '__main__':
                   [0 ,0, 1, 1, 0, 0, 0, 0, 0],
                   [0, 0, 0, 1, 0, 1, 0, 0, 0]
     ]
-    print convert(img_labels)
+    converter = p2b()
+    print converter.convert(img_labels)
