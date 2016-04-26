@@ -13,8 +13,9 @@
 import numpy as np
 
 def convert (image_values):
-    threshold = [0.3, 0.3, 0.3, -1, 0.5, 0.1, 0.3, 0.4, -1]
+    threshold = [0.3, 0.3, 0.3, 0.1, 0.5, 0.1, 0.3, 0.4, 0.1]
     mean_value = np.mean(image_values, axis=0)
+    max_value = np.max(image_values, axis=0)
 
     business_labels = np.zeros(9);
 
