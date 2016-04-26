@@ -16,7 +16,15 @@ from threading import Thread
 from PIL import Image
 
 from tools import SimpleTransformer
+import sys
+import PIL.Image
+from StringIO import StringIO
 
+import caffe
+import lmdb
+import os
+import caffe.proto.caffe_pb2
+from caffe.io import datum_to_array
 
 """
 This file is taken from caffe example for PASCAL multilabel classification.
@@ -32,8 +40,7 @@ class YelpMultilabelSync(caffe.Layer):
     """
 
     def setup(self, bottom, top):
-
-        self.top_names = ['data', 'label', 'business_id', 'image_id']
+	self.top_names = ['data', 'label', 'business_id', 'image_id']
 
         # === Read input parameters ===
 
@@ -50,12 +57,13 @@ class YelpMultilabelSync(caffe.Layer):
         self.batch_loader = BatchLoader(params, None)
 
         # === reshape tops ===
-        # since we use a fixed input image size, we can shape the data layer
-        # once. Else, we'd have to do it in the reshape call.
         top[0].reshape(
             self.batch_size, 3, params['im_shape'][0], params['im_shape'][1])
+
         # Note the 9 channels (because Yelp has 9 classes.)
         top[1].reshape(self.batch_size, 9)
+        top[2].reshape(self.batch_size, 1)
+        top[3].reshape(self.batch_size, 1)
 
         print_info("YelpMultilabelSync", params)
 
@@ -65,18 +73,19 @@ class YelpMultilabelSync(caffe.Layer):
         """
         for itt in range(self.batch_size):
             # Use the batch loader to load the next image.
-            im, multilabel = self.batch_loader.load_next_image()
+            data, multilabel, photo_id, business_id = self.batch_loader.load_next_image()
 
             # Add directly to the caffe data layer
-            top[0].data[itt, ...] = im
+            top[0].data[itt, ...] = data
             top[1].data[itt, ...] = multilabel
+            top[2].data[itt, ...] = photo_id
+            top[3].data[itt, ...] = business_id
 
     def reshape(self, bottom, top):
         """
         There is no need to reshape the data, since the input is of fixed size
         (rows and columns)
         """
-		# TODO(prad): Add code to reshape the image to 227x227 randomly.
         pass
 
     def backward(self, top, propagate_down, bottom):
@@ -95,6 +104,7 @@ class BatchLoader(object):
         self.yelp_csv_root = params['yelp_csv_root']
         self.im_shape = params['im_shape']
 	self.split=params['split']
+
         # get list of image indexes.
         if self.split in ["train", "validation"]:
        	    list_csv = self.yelp_csv_root + self.split + '_photo_to_biz_ids2.csv'
@@ -113,10 +123,6 @@ class BatchLoader(object):
         print "BatchLoader initialized with {} images".format(
             len(self.image_key))
 
-    	"""classes = ('good_for_lunch', 'good_for_dinner', 'takes_reservations', 'outdoor_seating',
-				   'restaurant_is_expensive', 'has_alcohol', 'has_table_service',
-				   'ambience_is_classy', 'good_for_kids')"""
-
 	if self.split in ["train", "validation"]:
 	    attributes_csv = osp.join(self.yelp_csv_root, self.split + '2.csv')
             self.attributes_dict = {}
@@ -126,32 +132,32 @@ class BatchLoader(object):
                 for row in reader:
                     attr_string = row["labels"]
                     self.attributes_dict[row["business_id"]] = [int(label) for label in row["labels"].split()]
+
+	if self.split == 'train':
+	    lmdb_dir = self.yelp_picture_root + 'train_lmdb'
+	elif self.split == 'validation':
+	    lmdb_dir = self.yelp_picture_root + 'val_lmdb'
+	elif self.split == 'test':
+	    lmdb_dir = self.yelp_picture_root + 'test_lmdb'
+
+	lmdb_env = lmdb.open(lmdb_dir)
+	self.lmdb_txn = lmdb_env.begin()
+	self.lmdb_cursor = self.lmdb_txn.cursor()
 		
 
     def load_next_image(self):
         """
         Load the next image in a batch.
-        """
+	"""
         # Did we finish an epoch?
         if self._cur == len(self.image_key):
             self._cur = 0
-	    # Shuffle if we are training.
-	    if self.split == "train":
-                shuffle(self.image_key)
+	if not self.lmdb_cursor.next():
+	    self.lmdb_cursor = self.lmdb_txn.cursor()
+	    self.lmdb_cursor.next()
 
-        # Load an image
+	business_id = self.image_key[self._cur]["business_id"]
         photo_id = self.image_key[self._cur]["photo_id"]  # Get the image index
-        business_id = self.image_key[self._cur]["business_id"]
-        image_file_name = photo_id + '.jpg'
-        if self.split in ["train", "validation"]:
-	    im = np.asarray(Image.open(osp.join(self.yelp_picture_root, 'train_photos', image_file_name)))
-        else:
-	    im = np.asarray(Image.open(osp.join(self.yelp_picture_root, 'test_photos', image_file_name)))
-	im = scipy.misc.imresize(im, self.im_shape)  # resize
-
-        # do a simple horizontal flip as data augmentation
-        flip = np.random.choice(2)*2-1
-        im = im[:, ::flip, :]
 
         # Load and prepare ground truth
         multilabel = np.zeros(9).astype(np.float32)
@@ -162,7 +168,24 @@ class BatchLoader(object):
                 multilabel[label] = 1
 
         self._cur += 1
-        return self.transformer.preprocess(im), multilabel
+	datum = caffe.proto.caffe_pb2.Datum()
+	key, value = self.lmdb_cursor.item()
+
+    	datum.ParseFromString(value)
+        label = datum.label
+	if self.split != 'test' and str(label) != business_id:
+	    print "Houston, we have a problem." + str(label) + ":" + str(business_id)
+
+	data = caffe.io.datum_to_array(datum)
+	im = scipy.misc.imresize(data, self.im_shape)  # resize
+
+        # do a simple horizontal flip as data augmentation
+        flip = np.random.choice(2)*2-1
+        im = im[:, ::flip, :]
+	# The datum above already does BGR transformation. But we are redoing it using the transformer below.
+	im = im[:, :, ::-1]
+	
+	return self.transformer.preprocess(im), multilabel, photo_id, label
 
 
     def load_yelp_attributes(self, business_id):

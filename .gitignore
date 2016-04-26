@@ -4,3 +4,6 @@ connect.sh
 yelp_multilabel_dir/*
 .ipynb_checkpoints/*
 *.pyc
+*.npy
+
+connect.sh
