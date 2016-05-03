@@ -7,3 +7,5 @@ yelp_multilabel_dir/*
 *.npy
 
 connect.sh
+
+*.caffemodel
