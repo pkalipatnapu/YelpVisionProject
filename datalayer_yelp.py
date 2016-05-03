@@ -30,8 +30,6 @@ from caffe.io import datum_to_array
 This file is taken from caffe example for PASCAL multilabel classification.
 """
 
-
-
 class YelpMultilabelSync(caffe.Layer):
 
     """
@@ -214,3 +212,22 @@ def print_info(name, params):
         params['batch_size'],
         params['im_shape'])
 
+
+class LSTMYelpMultilabelSync(YelpMultilabelSync):
+    def setup(self, bottom, top):
+        # Do normal yelp multilabel sync stuff, but also generate clip markers.
+        super(LSTMYelpMultilabelSync, self).setup(bottom, top)
+        self.top_names.append('clip_markers')
+        top[4].reshape(self.batch_size, 1)
+        
+    def forward(self, bottom, top):
+        super(LSTMYelpMultilabelSync, self).forward(bottom, top)
+        # Set any value for the clip marker for now.
+        # We don't continue across batches.
+        top[4].data[0, ...] = 0
+        for itt in range(1, self.batch_size):
+            # If this image belongs to the same business, return 1.
+            if top[3].data[itt, ...] == top[3].data[itt-1,...]:
+                top[4].data[itt, ...] = 1
+            else:
+                top[4].data[itt, ...] = 0
