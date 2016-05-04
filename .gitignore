@@ -1,11 +1,11 @@
-connect.sh
 *.pem
 *.swp
 yelp_multilabel_dir/*
 .ipynb_checkpoints/*
+blvc/.ipynb_checkpoints
 *.pyc
 *.npy
 
-connect.sh
+ec2/connect.sh
 
 *.caffemodel

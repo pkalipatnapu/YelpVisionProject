@@ -173,6 +173,7 @@ class BatchLoader(object):
 
     	datum.ParseFromString(value)
         label = datum.label
+	# TODO(prad): Add a check for test as well.
 	if self.split != 'test' and str(label) != business_id:
 	    print "Houston, we have a problem." + str(label) + ":" + str(business_id)
 
