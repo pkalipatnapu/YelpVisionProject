@@ -123,9 +123,12 @@ class BatchLoader(object):
         print "BatchLoader initialized with {} images".format(
             len(self.image_key))
 
-	if self.split in ["train", "validation"]:
+	if self.split in ["train", "validation", "poster"]:
 	    attributes_csv = osp.join(self.yelp_csv_root, self.split + '2.csv')
             self.attributes_dict = {}
+
+	    if self.split == "poster":
+		attributes_csv = osp.join(self.yelp_picture_root, self.split + '.csv')
 
             with open(attributes_csv) as csv_file:
                 reader = csv.DictReader(csv_file)
@@ -133,17 +136,14 @@ class BatchLoader(object):
                     attr_string = row["labels"]
                     self.attributes_dict[row["business_id"]] = [int(label) for label in row["labels"].split()]
 
-	if self.split == 'train':
-	    lmdb_dir = self.yelp_picture_root + 'train_lmdb'
-	elif self.split == 'validation':
+	if self.split == 'validation':
 	    lmdb_dir = self.yelp_picture_root + 'val_lmdb'
-	elif self.split == 'test':
-	    lmdb_dir = self.yelp_picture_root + 'test_lmdb'
-
+	else:
+	    lmdb_dir = self.yelp_picture_root + self.split + '_lmdb'
 	lmdb_env = lmdb.open(lmdb_dir)
 	self.lmdb_txn = lmdb_env.begin()
 	self.lmdb_cursor = self.lmdb_txn.cursor()
-		
+	
 
     def load_next_image(self):
         """
@@ -161,7 +161,7 @@ class BatchLoader(object):
 
         # Load and prepare ground truth
         multilabel = np.zeros(9).astype(np.float32)
-        if self.split in ["train", "validation"]:
+        if self.split in ["train", "validation","poster"]:
             anns = self.load_yelp_attributes(business_id)
             for label in anns:
                 # convert label information to a 1/0 array.
@@ -174,7 +174,7 @@ class BatchLoader(object):
     	datum.ParseFromString(value)
         label = datum.label
 	# TODO(prad): Add a check for test as well.
-	if self.split != 'test' and str(label) != business_id:
+	if self.split != 'test' and self.split != 'poster' and str(label) != business_id:
 	    print "Houston, we have a problem." + str(label) + ":" + str(business_id)
 
 	data = caffe.io.datum_to_array(datum)
@@ -189,7 +189,7 @@ class BatchLoader(object):
 	return self.transformer.preprocess(im), multilabel, photo_id, label
 
 
-    def load_yelp_attributes(self, business_id):
+    def load_yelp_attributes(self, business_id, mapping=None):
         return self.attributes_dict[business_id]
 
 
@@ -198,7 +198,7 @@ def check_params(params):
     A utility function to check the parameters for the data layers.
     """
     assert 'split' in params.keys(
-    ), 'Params must include split (train, validation, or test).'
+    ), 'Params must include split (train, validation, poster or test).'
 
     required = ['batch_size', 'yelp_picture_root', 'yelp_csv_root', 'im_shape']
     for r in required:
